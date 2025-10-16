@@ -99,10 +99,11 @@ app.use(session({
   store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
   cookie: {
     maxAge: 1000 * 60 * 60 * 24, // 1 day
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    secure: process.env.NODE_ENV === 'production', // HTTPS required for production
+    sameSite: 'none',           // allow cross-domain cookies
+    secure: true,               // must be HTTPS for production
   },
 }));
+
 
 // =========================
 // ✅ Static files (uploads)
