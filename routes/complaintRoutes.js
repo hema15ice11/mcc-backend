@@ -1,5 +1,6 @@
 const express = require("express");
 const multer = require("multer");
+const nodemailer = require("nodemailer");
 const Complaint = require("../models/Complaint");
 const User = require("../models/User");
 
@@ -12,6 +13,24 @@ module.exports = (io, userSockets) => {
     filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
   });
   const upload = multer({ storage });
+
+  // ===== Simple email sender =====
+  const sendEmail = async (to, subject, text) => {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to,
+      subject,
+      text,
+    });
+  };
 
   // ===== Middleware: User authentication =====
   const isUserAuthenticated = async (req, res, next) => {
@@ -79,8 +98,8 @@ module.exports = (io, userSockets) => {
   router.get("/all", async (req, res) => {
     try {
       const complaints = await Complaint.find()
-          .populate("userId", "firstName lastName email phone address")
-          .sort({ createdAt: -1 });
+        .populate("userId", "firstName lastName email phone address")
+        .sort({ createdAt: -1 });
       res.json(complaints);
     } catch (err) {
       console.error("Error fetching all complaints:", err);
@@ -98,17 +117,33 @@ module.exports = (io, userSockets) => {
       if (!complaintId) return res.status(400).json({ msg: "Complaint ID missing" });
 
       const complaint = await Complaint.findByIdAndUpdate(
-          complaintId,
-          { $set: { status } },
-          { new: true, runValidators: true }
-      ).populate("userId", "firstName lastName phone address");
+        complaintId,
+        { $set: { status } },
+        { new: true, runValidators: true }
+      ).populate("userId", "firstName lastName email phone address");
 
       if (!complaint) {
         console.error("Complaint not found:", complaintId);
         return res.status(404).json({ msg: "Complaint not found" });
       }
 
+      // Emit socket update
       io.emit("complaintUpdated", { complaintId, status });
+
+      // Send email notification to user
+      if (complaint.userId && complaint.userId.email) {
+        const emailSubject = "Complaint Status Updated";
+        const emailBody = `Hello ${complaint.userId.firstName},
+Your complaint has been ${status}.
+Thank you, Municipal Corporation Support Team`;
+
+        try {
+          await sendEmail(complaint.userId.email, emailSubject, emailBody);
+          console.log(`Email sent to ${complaint.userId.email}`);
+        } catch (emailErr) {
+          console.error("Error sending status email:", emailErr);
+        }
+      }
 
       res.json(complaint);
     } catch (err) {
