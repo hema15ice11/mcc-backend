@@ -16,26 +16,23 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
 // =========================
 // ✅ Socket.IO Setup
 // =========================
 const io = new Server(server, {
     cors: {
-        origin: [
-            'http://localhost:5173',              // local dev
-            'https://mcc-frontend.vercel.app'    // deployed frontend
-        ],
+        origin: [FRONTEND_URL, 'http://localhost:5173'],
         credentials: true,
     },
 });
 
-// Map to store userId → socketId
 const userSockets = new Map();
 
 io.on('connection', (socket) => {
     console.log(`⚡ User connected: ${socket.id}`);
 
-    // Register user for real-time updates
     socket.on('registerUser', (userId) => {
         if (userId) {
             userSockets.set(userId, socket.id);
@@ -43,7 +40,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Remove from map on disconnect
     socket.on('disconnect', () => {
         for (let [userId, sockId] of userSockets.entries()) {
             if (sockId === socket.id) {
@@ -60,10 +56,7 @@ io.on('connection', (socket) => {
 // =========================
 app.use(express.json());
 app.use(cors({
-    origin: [
-        'http://localhost:5173',              // local dev
-        'https://mcc-frontend.vercel.app'    // deployed frontend
-    ],
+    origin: [FRONTEND_URL, 'http://localhost:5173'],
     credentials: true,
 }));
 
@@ -74,7 +67,6 @@ mongoose.connect(process.env.MONGO_URI)
     .then(async () => {
         console.log('✅ MongoDB connected');
 
-        // Ensure default admin exists
         const User = require('./models/User');
         const adminEmail = "admin@gmail.com";
         const adminPassword = "admin123";
@@ -107,7 +99,7 @@ app.use(session({
     cookie: {
         maxAge: 1000 * 60 * 60 * 24, // 1 day
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        secure: process.env.NODE_ENV === 'production', // true on HTTPS
+        secure: process.env.NODE_ENV === 'production',
     },
 }));
 
