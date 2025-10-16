@@ -21,7 +21,10 @@ const server = http.createServer(app);
 // =========================
 const io = new Server(server, {
     cors: {
-        origin: 'http://localhost:5173', // frontend URL
+        origin: [
+            'http://localhost:5173',              // local dev
+            'https://mcc-frontend.vercel.app'    // deployed frontend
+        ],
         credentials: true,
     },
 });
@@ -57,7 +60,10 @@ io.on('connection', (socket) => {
 // =========================
 app.use(express.json());
 app.use(cors({
-    origin: 'http://localhost:5173',
+    origin: [
+        'http://localhost:5173',              // local dev
+        'https://mcc-frontend.vercel.app'    // deployed frontend
+    ],
     credentials: true,
 }));
 
@@ -98,7 +104,11 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
-    cookie: { maxAge: 1000 * 60 * 60 * 24 }, // 1 day
+    cookie: {
+        maxAge: 1000 * 60 * 60 * 24, // 1 day
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        secure: process.env.NODE_ENV === 'production', // true on HTTPS
+    },
 }));
 
 // =========================
@@ -112,7 +122,6 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const authRoutes = require('./routes/authRoutes');
 app.use('/api/auth', authRoutes);
 
-// Complaints route requires io and userSockets
 const complaintRoutes = require('./routes/complaintRoutes');
 app.use('/api/complaints', complaintRoutes(io, userSockets));
 
