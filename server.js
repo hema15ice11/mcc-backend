@@ -16,14 +16,15 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://your-frontend-domain.com'; // replace with actual deployed URL
+const isProduction = process.env.NODE_ENV === 'production';
 
 // =========================
 // ✅ Socket.IO Setup
 // =========================
 const io = new Server(server, {
   cors: {
-    origin: [FRONTEND_URL, 'http://localhost:5173'],
+    origin: [FRONTEND_URL],
     credentials: true,
   },
 });
@@ -56,7 +57,7 @@ io.on('connection', (socket) => {
 // =========================
 app.use(express.json());
 app.use(cors({
-  origin: [FRONTEND_URL, 'http://localhost:5173'],
+  origin: [FRONTEND_URL],
   credentials: true,
 }));
 
@@ -92,6 +93,7 @@ mongoose.connect(process.env.MONGO_URI)
 // =========================
 // ✅ Session Middleware
 // =========================
+app.set('trust proxy', 1); // required if behind a reverse proxy (e.g., Vercel, Heroku)
 app.use(session({
   secret: process.env.JWT_SECRET || 'secret_key',
   resave: false,
@@ -99,11 +101,10 @@ app.use(session({
   store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
   cookie: {
     maxAge: 1000 * 60 * 60 * 24, // 1 day
-    sameSite: 'none',           // allow cross-domain cookies
-    secure: true,               // must be HTTPS for production
+    sameSite: 'none',             // required for cross-domain cookies over HTTPS
+    secure: true,                 // HTTPS only
   },
 }));
-
 
 // =========================
 // ✅ Static files (uploads)
