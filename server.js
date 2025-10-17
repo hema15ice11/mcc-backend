@@ -16,18 +16,25 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://your-frontend-domain.com'; // replace with actual deployed URL
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'; // replace with actual deployed URL
 const isProduction = process.env.NODE_ENV === 'production';
 
 // =========================
 // ✅ Socket.IO Setup
 // =========================
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  process.env.FRONTEND_URL, // your deployed URL (from .env)
+].filter(Boolean); // removes undefined if not set
+
 const io = new Server(server, {
   cors: {
-    origin: [FRONTEND_URL],
+    origin: allowedOrigins,
     credentials: true,
   },
 });
+
 
 const userSockets = new Map();
 
