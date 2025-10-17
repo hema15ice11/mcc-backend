@@ -16,25 +16,25 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'; // replace with actual deployed URL
 const isProduction = process.env.NODE_ENV === 'production';
+
+// =========================
+// ✅ Allowed Frontend Origins
+// =========================
+const allowedOrigins = [
+  'http://localhost:5173',
+  process.env.FRONTEND_URL, // e.g. https://your-vercel-app.vercel.app
+].filter(Boolean); // removes undefined if not set
 
 // =========================
 // ✅ Socket.IO Setup
 // =========================
-
-const allowedOrigins = [
-  'http://localhost:5173',
-  process.env.FRONTEND_URL, // your deployed URL (from .env)
-].filter(Boolean); // removes undefined if not set
-
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
     credentials: true,
   },
 });
-
 
 const userSockets = new Map();
 
@@ -64,7 +64,7 @@ io.on('connection', (socket) => {
 // =========================
 app.use(express.json());
 app.use(cors({
-  origin: [FRONTEND_URL],
+  origin: allowedOrigins,
   credentials: true,
 }));
 
@@ -75,7 +75,6 @@ mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log('✅ MongoDB connected');
 
-    // Ensure default admin exists
     const User = require('./models/User');
     const adminEmail = "admin@gmail.com";
     const adminPassword = "admin123";
@@ -100,16 +99,16 @@ mongoose.connect(process.env.MONGO_URI)
 // =========================
 // ✅ Session Middleware
 // =========================
-app.set('trust proxy', 1); // required if behind a reverse proxy (e.g., Vercel, Heroku)
+app.set('trust proxy', 1);
 app.use(session({
   secret: process.env.JWT_SECRET || 'secret_key',
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
   cookie: {
-    maxAge: 1000 * 60 * 60 * 24, // 1 day
-    sameSite: 'none',             // required for cross-domain cookies over HTTPS
-    secure: true,                 // HTTPS only
+    maxAge: 1000 * 60 * 60 * 24,
+    sameSite: isProduction ? 'none' : 'lax',
+    secure: isProduction,
   },
 }));
 
