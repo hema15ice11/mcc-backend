@@ -151,6 +151,4 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`🚀 Server + Socket.IO running on port ${PORT}`));
 
 
-http://localhost:5173/
 
-I need run from vercel link as well as from this localhost also for frontend for that can I add this in backend server.js only or I need to add anywhere else
