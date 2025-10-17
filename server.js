@@ -16,22 +16,15 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173/'; // replace with actual deployed URL
 const isProduction = process.env.NODE_ENV === 'production';
-
-// =========================
-// ✅ Allowed Frontend Origins
-// =========================
-const allowedOrigins = [
-  'http://localhost:5173',
-  process.env.FRONTEND_URL, // e.g. https://your-vercel-app.vercel.app
-].filter(Boolean); // removes undefined if not set
 
 // =========================
 // ✅ Socket.IO Setup
 // =========================
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: [FRONTEND_URL],
     credentials: true,
   },
 });
@@ -64,7 +57,7 @@ io.on('connection', (socket) => {
 // =========================
 app.use(express.json());
 app.use(cors({
-  origin: allowedOrigins,
+  origin: [FRONTEND_URL],
   credentials: true,
 }));
 
@@ -75,6 +68,7 @@ mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log('✅ MongoDB connected');
 
+    // Ensure default admin exists
     const User = require('./models/User');
     const adminEmail = "admin@gmail.com";
     const adminPassword = "admin123";
@@ -99,16 +93,16 @@ mongoose.connect(process.env.MONGO_URI)
 // =========================
 // ✅ Session Middleware
 // =========================
-app.set('trust proxy', 1);
+app.set('trust proxy', 1); // required if behind a reverse proxy (e.g., Vercel, Heroku)
 app.use(session({
   secret: process.env.JWT_SECRET || 'secret_key',
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
   cookie: {
-    maxAge: 1000 * 60 * 60 * 24,
-    sameSite: isProduction ? 'none' : 'lax',
-    secure: isProduction,
+    maxAge: 1000 * 60 * 60 * 24, // 1 day
+    sameSite: 'none',             // required for cross-domain cookies over HTTPS
+    secure: true,                 // HTTPS only
   },
 }));
 
@@ -155,3 +149,8 @@ app.use((req, res) => {
 // =========================
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`🚀 Server + Socket.IO running on port ${PORT}`));
+
+
+http://localhost:5173/
+
+I need run from vercel link as well as from this localhost also for frontend for that can I add this in backend server.js only or I need to add anywhere else
